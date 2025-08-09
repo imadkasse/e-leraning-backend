@@ -5,11 +5,14 @@ const APIFeaturs = require("../utils/apiFeaturs");
 const User = require("../models/userModel");
 const Video = require("../models/videoModel");
 const File = require("../models/fileModel");
-const axios = require("axios");
+
+//! ################# NEW ###################
+const { uploadVideo } = require("../utils/uploadVideo");
 
 const multer = require("multer");
 const sharp = require("sharp");
 const cloudinary = require("./../config/cloudinary");
+const Section = require("../models/sectionsModel");
 
 const multerStorage = multer.memoryStorage();
 
@@ -46,8 +49,11 @@ exports.uploadCourseFile = upload.fields([
 //Uploads a image Cover
 exports.requireImageCoverForCreateCourse = catchAsync(
   async (req, res, next) => {
-    if (!req.files) {
-      console.log(req.files.imageCover[0]);
+    if (
+      !req.files ||
+      !req.files.imageCover ||
+      req.files.imageCover.length === 0
+    ) {
       return next(
         new AppError("يرجى تحميل ملف الصورة المغرة  عند إنشاء الدورة", 400)
       );
@@ -198,17 +204,17 @@ exports.uploadFilesCourse = catchAsync(async (req, res, next) => {
   next();
 });
 
+//! #################################### UPDATED #############################
 // teacher and admin
 exports.createCourse = catchAsync(async (req, res, next) => {
   req.body.instructor = req.user.id;
-  const course = await Course.create(req.body);
+  // course only containe title description price category imageCover concepts
+  const course = await Course.create({
+    ...req.body,
+  });
 
-  // تحديث الفيديو الأول وإضافة courseId
-  if (req.body.videos && req.body.videos[0]) {
-    await Video.findByIdAndUpdate(req.body.videos[0], { courseId: course._id });
-  }
-
-  const user = await User.findByIdAndUpdate(
+  //add course to teacher
+  await User.findByIdAndUpdate(
     req.user.id,
     {
       $push: { publishedCourses: course._id },
@@ -222,6 +228,50 @@ exports.createCourse = catchAsync(async (req, res, next) => {
   res.status(201).json({
     message: "تم نشر بنجاح",
     course,
+  });
+});
+
+//! #################################### NEW #############################
+//! Route : /courses/{courseId}
+exports.updateCourseSections = catchAsync(async (req, res, next) => {
+  const courseId = req.params.courseId;
+  const sectionTitle = req.body.sectionTitle;
+
+  const section = await Section.create({
+    title: sectionTitle,
+    videos: [],
+  });
+
+  const course = await Course.findById(courseId);
+  course.sections.push(section.id);
+  await course.save();
+
+  res.status(200).json({
+    message: "تم حفظ القسم بنجاح",
+    section,
+  });
+});
+
+exports.addVideoToSection = catchAsync(async (req, res, next) => {
+  const teacher = await User.findById(req.user.id);
+  const sectionId = req.params.sectionId;
+  const section = await Section.findById(sectionId);
+  const { videoId, videoDuration, videoFormat } = await uploadVideo(
+    req.body.title,
+    req.file
+  );
+  console.log(videoId, videoDuration, videoFormat);
+  const newVideo = await Video.create({
+    lessonTitle: req.body.title,
+    url: videoId,
+    duration: videoDuration,
+    format: videoFormat,
+    uploadedBy: teacher.id,
+  });
+  section.videos.push(newVideo.id);
+  await section.save();
+  res.status(200).json({
+    msg: "upload video good !",
   });
 });
 
@@ -294,7 +344,6 @@ exports.enrollCourse = async (req, res, next) => {
   if (!(student.balance >= 0 && student.balance >= course.price)) {
     return next(new AppError("ليس لديك رصيد كاف للتسجيل في هذا الكورس", 400));
   }
-  
 
   course.enrolledStudents.push(studentId);
   course.studentsCount += 1;
@@ -460,13 +509,29 @@ exports.addLesson = catchAsync(async (req, res, next) => {
   if (!user.publishedCourses.includes(course.id)) {
     return next(new AppError("ليس لديك الصلاحية لإضافة فيديو جديد", 403));
   }
+
+  const section = await Section.findById(req.params.sectionId);
+  if (!section) {
+    return next(new AppError("القسم غير موجود", 404));
+  }
+
+  // التحقق من أن القسم ينتمي للدورة
+  if (!course.sections.includes(section._id)) {
+    return next(new AppError("القسم لا ينتمي لهذه الدورة", 400));
+  }
+
   req.body.uploadedBy = user._id;
   req.body.courseId = course.id;
+
+  // create lesson with video
   const newLesson = await Video.create(req.body);
 
-  course.videos.push(newLesson._id);
-  course.duration += newLesson.duration;
+  // add the video to section
+  section.videos.push(newLesson._id);
+  await section.save();
 
+  // تحديث مدة الدورة
+  course.duration += newLesson.duration || 0;
   await course.save();
 
   res.status(200).json({
@@ -535,15 +600,28 @@ exports.deleteLesson = catchAsync(async (req, res, next) => {
   const video = await Video.findById(req.params.videoId);
   if (!video) return next(new AppError("المحاضرة غير موجود", 404));
 
-  if (!course.videos.some((video) => video._id.equals(video._id))) {
-    return next(new AppError("المحاضرة غير موجود في هذه الدورة", 400));
+  const section = await Section.findById(req.params.sectionId);
+  if (!section) return next(new AppError("القسم غير موجود", 404));
+
+  //check is the video in side section
+  if (!section.videos.includes(video._id)) {
+    return next(new AppError("المحاضرة غير موجودة في هذا القسم", 400));
   }
-  course.videos = course.videos.filter(
-    (v) => v._id.toString() !== video._id.toString()
+
+  // حذف الفيديو من القسم
+  section.videos = section.videos.filter(
+    (v) => v.toString() !== video._id.toString()
   );
+
+  await section.save();
+
+  // تحديث مدة الدورة
+  course.duration = Math.max(0, course.duration - (video.duration || 0));
   await course.save();
 
+  // حذف الفيديو نفسه
   await video.deleteOne();
+
   res.status(204).json({
     message: "تم الحذف  الدرس  بنجاح",
   });
@@ -700,5 +778,108 @@ exports.getCoursesAndCategory = catchAsync(async (req, res, next) => {
     status: "success",
     message: "تم الحصول على المادات والأقسام",
     courses: categorysAndCourses,
+  });
+});
+
+// إدارة الأقسام
+exports.createSection = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return next(new AppError("المستخدم غير موجود", 404));
+
+  const course = await Course.findById(req.params.courseId);
+  if (!course) return next(new AppError("المادة غير موجودة", 404));
+
+  if (!user.publishedCourses.includes(course.id)) {
+    return next(new AppError("ليس لديك الصلاحية لإضافة قسم جديد", 403));
+  }
+
+  if (!req.body.title) {
+    return next(new AppError("عنوان القسم مطلوب", 400));
+  }
+
+  const newSection = await Section.create({
+    title: req.body.title,
+    videos: [],
+  });
+
+  course.sections.push(newSection._id);
+  await course.save();
+
+  res.status(201).json({
+    status: "success",
+    message: "تم إنشاء القسم بنجاح",
+    section: newSection,
+  });
+});
+
+exports.updateSection = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return next(new AppError("المستخدم غير موجود", 404));
+
+  const course = await Course.findById(req.params.courseId);
+  if (!course) return next(new AppError("المادة غير موجودة", 404));
+
+  if (!user.publishedCourses.includes(course.id)) {
+    return next(new AppError("ليس لديك الصلاحية لتحديث هذا القسم", 403));
+  }
+
+  const section = await Section.findById(req.params.sectionId);
+  if (!section) return next(new AppError("القسم غير موجود", 404));
+
+  if (!course.sections.includes(section._id)) {
+    return next(new AppError("القسم غير مرتبط بهذه الدورة", 400));
+  }
+
+  const updatedSection = await Section.findByIdAndUpdate(
+    req.params.sectionId,
+    req.body,
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
+
+  res.status(200).json({
+    status: "success",
+    message: "تم تحديث القسم بنجاح",
+    section: updatedSection,
+  });
+});
+
+exports.deleteSection = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return next(new AppError("المستخدم غير موجود", 404));
+
+  const course = await Course.findById(req.params.courseId);
+  if (!course) return next(new AppError("المادة غير موجودة", 404));
+
+  if (!user.publishedCourses.includes(course.id)) {
+    return next(new AppError("ليس لديك الصلاحية لحذف هذا القسم", 403));
+  }
+
+  const section = await Section.findById(req.params.sectionId);
+  if (!section) return next(new AppError("القسم غير موجود", 404));
+
+  if (!course.sections.includes(section._id)) {
+    return next(new AppError("القسم غير مرتبط بهذه الدورة", 400));
+  }
+
+  // حذف جميع الفيديوهات في القسم
+  if (section.videos.length > 0) {
+    await Video.deleteMany({ _id: { $in: section.videos } });
+  }
+
+  // حذف القسم
+  await section.deleteOne();
+
+  // إزالة القسم من الدورة
+  course.sections = course.sections.filter(
+    (s) => s.toString() !== section._id.toString()
+  );
+  await course.save();
+
+  res.status(204).json({
+    status: "success",
+    message: "تم حذف القسم بنجاح",
   });
 });

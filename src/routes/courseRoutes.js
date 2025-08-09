@@ -1,5 +1,6 @@
 const express = require("express");
 const {
+  updateCourseSections,
   createCourse,
   getAllcourse,
   getCourse,
@@ -30,6 +31,10 @@ const {
   optionalImageCoverForUpdateCourse,
   isCompleted,
   getCoursesAndCategory,
+  createSection,
+  updateSection,
+  deleteSection,
+  addVideoToSection,
 } = require("../controllers/courseController");
 const { prmission, restrictTo } = require("../controllers/authController");
 const {
@@ -42,6 +47,7 @@ const {
   addComment,
   getCommentsInLesson,
 } = require("../controllers/commentController");
+const { setUploads } = require("../utils/uploadVideo");
 
 const router = express.Router();
 router.route("/getCategory").get(getCoursesAndCategory);
@@ -52,10 +58,10 @@ router
     prmission,
     restrictTo("teacher"),
     uploadCourseFile,
-    requireImageCoverForCreateCourse,
+    optionalImageCoverForUpdateCourse,
     uploadCourseImageCover,
-    uploadVideosCourse,
-    uploadFilesCourse,
+    // uploadVideosCourse,
+    // uploadFilesCourse,
     createCourse
   )
   .get(getAllcourse);
@@ -68,6 +74,7 @@ router
 router
   .route("/:courseId")
   .get(getCourse)
+  .post(updateCourseSections)
   .patch(
     prmission,
     restrictTo("teacher"),
@@ -76,7 +83,30 @@ router
     uploadCourseImageCover,
     updateCourse
   )
-  .delete(prmission, restrictTo("admin", "teacher"), deleteCourse)
+  .delete(prmission, restrictTo("admin", "teacher"), deleteCourse);
+//! ############################ NEW ##############################
+//  add video to section
+router.post(
+  "/sections/:sectionId",
+  prmission,
+  restrictTo("teacher"),
+  setUploads,
+  addVideoToSection
+);
+
+// إدارة الأقسام
+router
+  .route("/:courseId/sections")
+  .post(prmission, restrictTo("teacher"), createSection);
+
+router
+  .route("/:courseId/sections/:sectionId")
+  .patch(prmission, restrictTo("teacher"), updateSection)
+  .delete(prmission, restrictTo("teacher"), deleteSection);
+
+// إضافة فيديو لقسم معين
+router
+  .route("/:courseId/sections/:sectionId/videos")
   .post(
     prmission,
     restrictTo("teacher"),
@@ -84,6 +114,19 @@ router
     requireVideoForCreateLesson,
     uploadVideoLesson,
     addLesson
+  );
+
+// حذف فيديو من قسم معين
+router
+  .route("/:courseId/sections/:sectionId/videos/:videoId")
+  .delete(prmission, restrictTo("teacher"), deleteLesson)
+  .patch(
+    prmission,
+    restrictTo("teacher"),
+    uploadVideoFromLesson,
+    optionalVideoForUpdateLesson,
+    uploadVideoLesson,
+    updateLesson
   );
 
 //enrolled in course
@@ -134,7 +177,7 @@ router
   );
 
 router
-  .route("/:courseId/files/:fileId")
+  .route("c")
   .delete(prmission, restrictTo("teacher"), deleteFile);
 
 // comments section

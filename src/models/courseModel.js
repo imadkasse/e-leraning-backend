@@ -1,13 +1,13 @@
 const mongoose = require("mongoose");
-const { populate } = require("./videoModel");
+
 const Schema = mongoose.Schema;
 
 const courseSchema = new Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
   instructor: { type: Schema.Types.ObjectId, ref: "User", required: true }, // إشارة إلى المدرس
-  videos: [{ type: Schema.Types.ObjectId, ref: "Video", required: true }], // فيديوهات الدورة
-  files: [{ type: Schema.Types.ObjectId, ref: "File", required: true }], // ملفات  الدورة
+  sections: [{ type: Schema.Types.ObjectId, ref: "Section", required: true }], // coreect is : [{ type: Schema.Types.ObjectId, ref: "Section", required: true }]
+  files: [{ type: Schema.Types.ObjectId, ref: "File" }], // ملفات  الدورة
   price: { type: Number, default: 0 }, // إذا كانت الدورة مدفوعة
   category: { type: String },
   duration: Number, // مدة الدورة الكاملة
@@ -51,16 +51,20 @@ courseSchema.pre(/^findOne/, function () {
       select: "username thumbnail",
     },
     {
-      path: "videos",
-      select: "lessonTitle duration url isCompleted completedBy comments",
-      populate: {
-        path: "comments",
-        select: "user text replies createdAt",
-        populate: {
-          path: "replies.user",
-          select: "username thumbnail createdAt",
-        },
-      },
+      path: "sections",
+      select: "title videos",
+      // populate: {
+      //   path: "videos",
+      //   select: "lessonTitle duration url isCompleted completedBy comments",
+      //   populate: {
+      //     path: "comments",
+      //     select: "user text replies createdAt",
+      //     populate: {
+      //       path: "replies.user",
+      //       select: "username thumbnail createdAt",
+      //     },
+      //   },
+      // },
     },
 
     {

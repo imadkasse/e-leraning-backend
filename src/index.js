@@ -92,7 +92,6 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/faq", faqRoutes);
 app.use("/api/comments", commentRoutes);
 
-
 //defined 404 middleware (page not found)
 app.all("*", (req, res, next) => {
   // إذا قمنا بتمرير قيمة لnext فإنه يعتبرها رسالة خطأ ويقوم بإعدام جميع البرامج الوسيطة
