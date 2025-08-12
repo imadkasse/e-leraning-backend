@@ -6,4 +6,5 @@ const sectionSchema = new Schema({
   videos: [{ type: Schema.Types.ObjectId, ref: "Video" }], // فيديوهات القسم
 });
 const Section = mongoose.model("Section", sectionSchema);
+
 module.exports = Section;

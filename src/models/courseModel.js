@@ -53,18 +53,11 @@ courseSchema.pre(/^findOne/, function () {
     {
       path: "sections",
       select: "title videos",
-      // populate: {
-      //   path: "videos",
-      //   select: "lessonTitle duration url isCompleted completedBy comments",
-      //   populate: {
-      //     path: "comments",
-      //     select: "user text replies createdAt",
-      //     populate: {
-      //       path: "replies.user",
-      //       select: "username thumbnail createdAt",
-      //     },
-      //   },
-      // },
+      populate: {
+        path: "videos",
+        
+
+      },
     },
 
     {

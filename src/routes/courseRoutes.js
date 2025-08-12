@@ -87,7 +87,7 @@ router
 //! ############################ NEW ##############################
 //  add video to section
 router.post(
-  "/sections/:sectionId",
+  "/:courseId/sections/:sectionId",
   prmission,
   restrictTo("teacher"),
   setUploads,
@@ -177,7 +177,7 @@ router
   );
 
 router
-  .route("c")
+  .route("/:courseId/files/:fileId")
   .delete(prmission, restrictTo("teacher"), deleteFile);
 
 // comments section

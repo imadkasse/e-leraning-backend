@@ -267,11 +267,13 @@ exports.addVideoToSection = catchAsync(async (req, res, next) => {
     duration: videoDuration,
     format: videoFormat,
     uploadedBy: teacher.id,
+    sectionId: sectionId,
   });
   section.videos.push(newVideo.id);
   await section.save();
   res.status(200).json({
-    msg: "upload video good !",
+    message: "تم رفع الفديو بنجاح",
+    video: newVideo,
   });
 });
 

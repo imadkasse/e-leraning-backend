@@ -7,13 +7,13 @@ const videoSchema = new Schema({
     required: true,
   },
   url: {
-    type: String, //! this is video id only 
+    type: String, //! this is video id only
     required: true,
   },
   format: {
     type: String, // مثل MP4, WebM, إلخ
     required: true,
-    default:'.mp4'
+    default: ".mp4",
   },
   duration: {
     type: Number,
@@ -24,10 +24,10 @@ const videoSchema = new Schema({
     ref: "User", // معرف المستخدم الذي رفع الفيديو
     required: true,
   },
-  // courseId: {
-  //   type: mongoose.Schema.Types.ObjectId,
-  //   ref: "Course", // إذا كان الفيديو مرتبط بكورس معين
-  // },  //! Replace with sectionId
+  sectionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Section", // إذا كان الفيديو مرتبط بكورس معين
+  }, //! Replace with sectionId
   isCompleted: {
     type: Boolean,
     default: false, // الفيديو ليس مكتمل
