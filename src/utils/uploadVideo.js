@@ -21,7 +21,7 @@ const storage = multer.diskStorage({
     );
   },
 });
-const baseUrl = "https://video.bunnycdn.com";
+const baseUrl = process.env.BASE_URL
 
 const upload = multer({
   storage: storage,

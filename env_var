@@ -1,0 +1,27 @@
+# Env 
+NODE_ENV=development
+PORT=5000
+URL=http://localhost:5000
+# Cloud  config
+
+API_KEY=116213868247286
+API_SECRET=bkta3MDfWeSWD48eZEjgw8Ao8GE
+CLOUD_NAME=dwnhria2i
+
+# send emails config
+EMAIL_FROM=
+EMAIL_HOST=
+EMAIL_PASSWORD=
+EMAIL_PORT=
+EMAIL_USERNAME=
+
+# Auth Config
+GOOGLE_CLIENT_ID=1095378731798-7g448kduld9i8gv70r8i7dg1cc1vr99l.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=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
+# db config
+URI=mongodb://localhost:27017/e-learning
+
+# bunny config
+VIDEO_LIBRARY_ID=476506
+BUNNY_API_KEY=e06030bb-7e26-429e-bd98c42fec48-e2e6-48e3
+BASE_URL=https://video.bunnycdn.com

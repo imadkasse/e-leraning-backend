@@ -55,8 +55,7 @@ courseSchema.pre(/^findOne/, function () {
       select: "title videos",
       populate: {
         path: "videos",
-        
-
+      
       },
     },
 
