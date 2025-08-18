@@ -53,10 +53,9 @@ courseSchema.pre(/^findOne/, function () {
     {
       path: "sections",
       select: "title videos",
-      populate: {
-        path: "videos",
-      
-      },
+      populate:{
+        path:'videos',
+      }
     },
 
     {
@@ -67,6 +66,18 @@ courseSchema.pre(/^findOne/, function () {
       path: "reviews",
       select: "user createdAt rating content",
       options: { sort: { createdAt: -1 } }, // ترتيب التقييمات من ��ديد الى قديم
+    },
+  ]);
+});
+courseSchema.pre(/^find/, function () {
+  this.populate([
+    {
+      path: "sections",
+      select: "title videos",
+        populate:{
+        path:'videos',
+        
+      }
     },
   ]);
 });

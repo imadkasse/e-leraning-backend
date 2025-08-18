@@ -295,7 +295,7 @@ exports.updateCourse = catchAsync(async (req, res, next) => {
 });
 
 exports.getCourse = catchAsync(async (req, res, next) => {
-  const course = await Course.findById(req.params.courseId);
+  const course = await Course.findById(req.params.courseId)
   if (!course) return next(new AppError("المادة غير موجودة", 404));
   res.status(200).json({
     message: "نجاح",
