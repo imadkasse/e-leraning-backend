@@ -32,7 +32,6 @@ const videoLibraryId = process.env.VIDEO_LIBRARY_ID;
 const bunnyApiKey = process.env.BUNNY_API_KEY;
 
 exports.uploadVideo = async (title, file) => {
-  console.log(title);
   const fetchVideoId = await axios.post(
     `${baseUrl}/library/${videoLibraryId}/videos`,
     {
@@ -45,8 +44,7 @@ exports.uploadVideo = async (title, file) => {
       },
     }
   );
-  console.log("fetching data : ", fetchVideoId.data);
-  const videoId = fetchVideoId.data.guid;
+    const videoId = fetchVideoId.data.guid;
 
   const uploadUrl = `${baseUrl}/library/${videoLibraryId}/videos/${videoId}`;
   // read the file
@@ -60,7 +58,6 @@ exports.uploadVideo = async (title, file) => {
     },
     maxBodyLength: Infinity,
   });
-  console.log("video", video);
   const videoDetailsResponse = await axios.get(
     `${baseUrl}/library/${videoLibraryId}/videos/${videoId}`,
     {
@@ -73,7 +70,6 @@ exports.uploadVideo = async (title, file) => {
   const videoDetails = videoDetailsResponse.data;
   const videoFormat = videoDetails.mediaType; // تنسيق الفيديو
   const videoDuration = videoDetails.length;
-  console.log('videoDetails :',videoDetails)
   // deleting file
   fs.unlink(file.path, (err) => {
     console.log(`${file.path} was deleted`);

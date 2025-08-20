@@ -233,16 +233,27 @@ exports.createCourse = catchAsync(async (req, res, next) => {
 
 //! #################################### NEW #############################
 //! Route : /courses/{courseId}
+// this is add section  to course in after time replace with createSection
 exports.updateCourseSections = catchAsync(async (req, res, next) => {
   const courseId = req.params.courseId;
   const sectionTitle = req.body.sectionTitle;
+  
+  const teacher = await User.findById(req.user.id);
+  console.log(courseId)
+  if (!teacher) return next(new AppError("المستخدم غير موجود", 404));
+  const course = await Course.findById(courseId);
+  if (!course) return next(new AppError("المادة غير موجودة", 404));
+
+  if (!course.instructor._id.toString() ===  teacher.id.toString()) {
+    return next(new AppError("ليس لديك الصلاحية لتحديث الأقسام", 403));
+  }
+  
 
   const section = await Section.create({
     title: sectionTitle,
     videos: [],
   });
 
-  const course = await Course.findById(courseId);
   course.sections.push(section.id);
   await course.save();
 
@@ -277,6 +288,67 @@ exports.addVideoToSection = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.updateVideoTitle = catchAsync(async (req, res, next) => {
+  const teacher = await User.findById(req.user.id);
+  if (!teacher) return next(new AppError("المستخدم غير موجود", 404));
+
+  const section = await Section.findById(req.params.sectionId);
+  if (!section) return next(new AppError("القسم غير موجود", 404));
+
+  const video = await Video.findById(req.params.videoId);
+  if (!video) return next(new AppError("الفيديو غير موجود في هذا القسم", 404));
+
+  if (video.uploadedBy.toString() !== teacher.id) {
+    return next(new AppError("ليس لديك الصلاحية لتحديث عنوان الفيديو", 403));
+  }
+
+  video.lessonTitle = req.body.title;
+  await video.save();
+
+  res.status(200).json({
+    message: "تم تحديث عنوان الفيديو بنجاح",
+    video,
+  });
+});
+exports.deleteVideoFromSection=catchAsync(async(req,res,next)=>{
+  const teacher = await User.findById(req.user.id);
+  if (!teacher) {
+    return next(new AppError("المستخدم غير موجود", 404));
+  }
+  
+  const video = await Video.findById(req.params.videoId);
+  if (!video) return next(new AppError("المحاضرة غير موجود", 404));
+
+  const section = await Section.findById(req.params.sectionId);
+  if (!section) return next(new AppError("القسم غير موجود", 404));
+
+  if (video.uploadedBy.toString() !== teacher.id) {
+    return next(new AppError("ليس لديك الصلاحية لتحديث عنوان الفيديو", 403));
+  }
+
+  //check is the video in side section
+  if (!section.videos.includes(video._id)) {
+    return next(new AppError("المحاضرة غير موجودة في هذا القسم", 400));
+  }
+
+  // حذف الفيديو من القسم
+  section.videos = section.videos.filter(
+    (v) => v.toString() !== video._id.toString()
+  );
+
+  await section.save();
+
+  // تحديث مدة الدورة
+  // course.duration = Math.max(0, course.duration - (video.duration || 0));
+  // await course.save();
+
+  // حذف الفيديو نفسه
+  await video.deleteOne();
+  res.status(204).json()
+})
+
+
+//! #################################### NEW #############################
 exports.uploadUpdateImageCover = upload.single("imageCover");
 
 exports.updateCourse = catchAsync(async (req, res, next) => {
@@ -588,22 +660,20 @@ exports.updateLesson = catchAsync(async (req, res, next) => {
 
 //حذف فيديو
 exports.deleteLesson = catchAsync(async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-  if (!user) {
+  const teacher = await User.findById(req.user.id);
+  if (!teacher) {
     return next(new AppError("المستخدم غير موجود", 404));
   }
-  const course = await Course.findById(req.params.courseId);
-  if (!course) return next(new AppError("المادة غير موجودة", 404));
-
-  if (!user.publishedCourses.includes(course.id)) {
-    return next(new AppError("ليس لديك الصلاحية لحذف هذا المحاضرة", 403));
-  }
-
+  
   const video = await Video.findById(req.params.videoId);
   if (!video) return next(new AppError("المحاضرة غير موجود", 404));
 
   const section = await Section.findById(req.params.sectionId);
   if (!section) return next(new AppError("القسم غير موجود", 404));
+
+  if (video.uploadedBy.toString() !== teacher.id) {
+    return next(new AppError("ليس لديك الصلاحية لتحديث عنوان الفيديو", 403));
+  }
 
   //check is the video in side section
   if (!section.videos.includes(video._id)) {
@@ -618,15 +688,13 @@ exports.deleteLesson = catchAsync(async (req, res, next) => {
   await section.save();
 
   // تحديث مدة الدورة
-  course.duration = Math.max(0, course.duration - (video.duration || 0));
-  await course.save();
+  // course.duration = Math.max(0, course.duration - (video.duration || 0));
+  // await course.save();
 
   // حذف الفيديو نفسه
   await video.deleteOne();
 
-  res.status(204).json({
-    message: "تم الحذف  الدرس  بنجاح",
-  });
+ 
 });
 
 //Files (pdf or docx ,doc)
@@ -815,25 +883,25 @@ exports.createSection = catchAsync(async (req, res, next) => {
 });
 
 exports.updateSection = catchAsync(async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return next(new AppError("المستخدم غير موجود", 404));
+  const {sectionId , courseId} = req.params
+  const teacher = await User.findById(req.user.id);
+  if (!teacher) return next(new AppError("المستخدم غير موجود", 404));
 
-  const course = await Course.findById(req.params.courseId);
+  const course = await Course.findById(courseId);
   if (!course) return next(new AppError("المادة غير موجودة", 404));
-
-  if (!user.publishedCourses.includes(course.id)) {
+  
+  if (!course.instructor._id.toString() ===  teacher.id.toString()) {
     return next(new AppError("ليس لديك الصلاحية لتحديث هذا القسم", 403));
   }
 
-  const section = await Section.findById(req.params.sectionId);
+  const section = await Section.findById(sectionId);
   if (!section) return next(new AppError("القسم غير موجود", 404));
-
-  if (!course.sections.includes(section._id)) {
-    return next(new AppError("القسم غير مرتبط بهذه الدورة", 400));
+  if (!course.sections.some(section => section._id.toString() === sectionId)) {
+  return next(new AppError("القسم غير مرتبط بهذه الدورة", 400));
   }
 
   const updatedSection = await Section.findByIdAndUpdate(
-    req.params.sectionId,
+    sectionId,
     req.body,
     {
       new: true,
@@ -849,20 +917,21 @@ exports.updateSection = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteSection = catchAsync(async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return next(new AppError("المستخدم غير موجود", 404));
+  const {sectionId , courseId} = req.params
+  const teacher = await User.findById(req.user.id);
+  if (!teacher) return next(new AppError("المستخدم غير موجود", 404));
 
-  const course = await Course.findById(req.params.courseId);
+  const course = await Course.findById(courseId);
   if (!course) return next(new AppError("المادة غير موجودة", 404));
 
-  if (!user.publishedCourses.includes(course.id)) {
+  if (!course.instructor._id.toString() ===  teacher.id.toString()) {
     return next(new AppError("ليس لديك الصلاحية لحذف هذا القسم", 403));
   }
 
-  const section = await Section.findById(req.params.sectionId);
+  const section = await Section.findById(sectionId);
   if (!section) return next(new AppError("القسم غير موجود", 404));
 
-  if (!course.sections.includes(section._id)) {
+  if (!course.sections.some(section => section._id.toString() === sectionId)) {
     return next(new AppError("القسم غير مرتبط بهذه الدورة", 400));
   }
 
@@ -876,12 +945,9 @@ exports.deleteSection = catchAsync(async (req, res, next) => {
 
   // إزالة القسم من الدورة
   course.sections = course.sections.filter(
-    (s) => s.toString() !== section._id.toString()
+    (s) => s._id.toString() !== section._id.toString()
   );
   await course.save();
 
-  res.status(204).json({
-    status: "success",
-    message: "تم حذف القسم بنجاح",
-  });
+  res.status(204).json();
 });

@@ -52,7 +52,7 @@ courseSchema.pre(/^findOne/, function () {
     },
     {
       path: "sections",
-      select: "title videos",
+      select: "title videos",// please d'ont edit this  line  (am using in courseController.js)
       populate:{
         path:'videos',
       }
@@ -73,7 +73,7 @@ courseSchema.pre(/^find/, function () {
   this.populate([
     {
       path: "sections",
-      select: "title videos",
+      select: "title videos",  // please d'ont edit this  line  (am using in courseController.js)
         populate:{
         path:'videos',
         
