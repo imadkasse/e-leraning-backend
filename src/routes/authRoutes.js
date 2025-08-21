@@ -9,6 +9,7 @@ const {
   resetPassword,
   uploadImageUser,
   uploadUsingClodinary,
+  logout,
 } = require("../controllers/authController");
 const passport = require("passport");
 const User = require("../models/userModel");
@@ -17,6 +18,7 @@ const router = express.Router();
 
 router.post("/login", loginUser);
 router.post("/signup", uploadImageUser, uploadUsingClodinary, signup);
+router.post('/logout',logout)
 
 router.get("/google", redirectGoogle);
 

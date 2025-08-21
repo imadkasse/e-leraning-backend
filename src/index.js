@@ -8,6 +8,8 @@ const globalError = require("./controllers/errorController");
 const socketIo = require("socket.io");
 const http = require("http");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
+
 
 //Routes
 
@@ -20,9 +22,24 @@ const commentRoutes = require("./routes/commentRoutes");
 
 const app = express();
 
+
+//cors
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "https://e-learning-platform-eosin.vercel.app",
+    ],
+    methods: ["GET", "POST", "PATCH", "DELETE"], // حدد طرق HTTP المسموح بها
+    credentials: true, // إذا كنت تستخدم ملفات تعريف الارتباط أو تتعامل مع بيانات اعتماد المستخدم
+  })
+);
+
 //setup socket.io
 
 const server = http.createServer(app);
+
+
 
 const io = socketIo(server, {
   cors: {
@@ -42,18 +59,9 @@ io.on("connection", (socket) => {
 
 // allowed body
 app.use(express.json());
+// allowed cookies
+app.use(cookieParser());
 
-//cors
-app.use(
-  cors({
-    origin: [
-      "http://localhost:3000",
-      "https://e-learning-platform-eosin.vercel.app",
-    ],
-    methods: ["GET", "POST", "PATCH", "DELETE"], // حدد طرق HTTP المسموح بها
-    credentials: true, // إذا كنت تستخدم ملفات تعريف الارتباط أو تتعامل مع بيانات اعتماد المستخدم
-  })
-);
 
 app.use((req, res, next) => {
   res.setTimeout(3600000, () => {

@@ -367,7 +367,37 @@ exports.updateCourse = catchAsync(async (req, res, next) => {
 });
 
 exports.getCourse = catchAsync(async (req, res, next) => {
-  const course = await Course.findById(req.params.courseId)
+  const course = await Course.findById(req.params.courseId).populate([
+    {
+      path: "instructor",
+      select: "username thumbnail",
+    },
+    {
+      path: "sections",
+      select: "title videos",// please d'ont edit this  line  (am using in courseController.js)
+      populate:{
+        path:'videos',
+        select: "lessonTitle duration url isCompleted completedBy comments",
+        populate: {
+          path: "comments",
+          select: "user text replies createdAt",
+          populate: {
+            path: "replies.user",
+            select: "username thumbnail createdAt",
+          },
+      },
+      }
+    },
+    {
+      path: "files",
+      select: "filename size url",
+    },
+    {
+      path: "reviews",
+      select: "user createdAt rating content",
+      options: { sort: { createdAt: -1 } }, // ترتيب التقييمات من ��ديد الى قديم
+    },
+  ]).lean()
   if (!course) return next(new AppError("المادة غير موجودة", 404));
   res.status(200).json({
     message: "نجاح",
@@ -377,11 +407,45 @@ exports.getCourse = catchAsync(async (req, res, next) => {
 
 // for admin only
 exports.getAllcourse = catchAsync(async (req, res, next) => {
-  const features = new APIFeaturs(Course.find(), req.query)
-    .filter()
-    .sort()
-    .limitFields()
-    .paginate();
+  const features = new APIFeaturs(
+  Course.find().populate([
+    {
+      path: "instructor",
+      select: "username thumbnail",
+    },
+    {
+      path: "sections",
+      select: "title videos",// please d'ont edit this  line  (am using in courseController.js)
+      populate:{
+        path:'videos',
+        select: "lessonTitle duration url isCompleted completedBy comments",
+        populate: {
+          path: "comments",
+          select: "user text replies createdAt",
+          populate: {
+            path: "replies.user",
+            select: "username thumbnail createdAt",
+          },
+      },
+      }
+    },
+    {
+      path: "files",
+      select: "filename size url",
+    },
+    {
+      path: "reviews",
+      select: "user createdAt rating content",
+      options: { sort: { createdAt: -1 } }, // ترتيب التقييمات من ��ديد الى قديم
+    },
+  ]),
+  req.query
+)
+  .filter()
+  .sort()
+  .limitFields()
+  .paginate();
+
 
   // const doc = await features.query.explain();
   const courses = await features.query;

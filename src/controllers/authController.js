@@ -83,9 +83,15 @@ exports.loginUser = (req, res, next) => {
 
     req.logIn(user, (err) => {
       if (err) return next(err);
+      res.cookie("token", token, {
+       httpOnly: true,
+  secure: process.env.NODE_ENV === "production"?true:false, 
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", 
+  maxAge: 24 * 60 * 60 * 1000,
+      });
       return res
         .status(200)
-        .json({ message: "تم تسجيل الدخول بنجاح", token, user });
+        .json({ message: "تم تسجيل الدخول بنجاح",  user });
     });
   })(req, res, next);
 };
@@ -99,12 +105,29 @@ exports.signup = catchAsync(async (req, res, next) => {
   // await new Email(user);
 
   const token = createToken(user);
+   res.cookie("token", token, {
+       httpOnly: true,
+  secure: process.env.NODE_ENV === "production"?true:false, 
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", 
+  maxAge: 24 * 60 * 60 * 1000,
+      });
   res.status(200).json({
     message: "نجاح",
-    token,
     user,
   });
 });
+
+exports.logout = catchAsync(async (req, res, next) => {
+  res.cookie("token", "", {
+    httpOnly: true,
+    secure: false, // فقط على HTTPS في الإنتاج
+    sameSite: "lax",
+    expires: new Date(0), // منتهي الصلاحية
+  });
+
+  res.status(200).json({ message: "تم تسجيل الخروج بنجاح" });
+});
+
 
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -155,12 +178,21 @@ exports.loginWithGoogle = catchAsync(async (req, res, next) => {
 
 exports.prmission = catchAsync(async (req, res, next) => {
   let token;
-  if (req.headers.authorization) {
+  // if (req.headers.authorization) {
+  //   token = req.headers.authorization.split(" ")[1];
+  // }
+  // using cookie
+  if (req.cookies?.token) {
+    token = req.cookies.token;
+  }
+  else if (req.headers.authorization?.startsWith("Bearer")) {
     token = req.headers.authorization.split(" ")[1];
   }
+
   if (!token) {
     return next(new AppError("Not authorized to access this route", 401));
   }
+
   const decoded = await promisify(jwt.verify)(token, "your_jwt_secret");
 
   const user = await User.findById(decoded.id);

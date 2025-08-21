@@ -59,8 +59,8 @@ exports.addComment = catchAsync(async (req, res, next) => {
     courseImage: course.imageCover,
     courseId: course.id,
     user,
-    lessonNumber:
-      course.videos.findIndex((lesson) => lesson.id === video.id) + 1,
+    lessonNumber:10 //edit after time
+    //   course.videos.findIndex((lesson) => lesson.id === video.id) + 1,//error in section
   });
 
   const notification = await Notification.create({
@@ -68,8 +68,8 @@ exports.addComment = catchAsync(async (req, res, next) => {
     courseId: course.id,
     courseImage: course.imageCover,
     message: `تم إضافة تعليق من طرف ${user.username}`,
-    lessonNumber:
-      course.videos.findIndex((lesson) => lesson.id === videoId) + 1,
+    lessonNumber:10//edit after time
+    //   course.videos.findIndex((lesson) => lesson.id === videoId) + 1,//error in section
   });
   const teacher = await User.findById(course.instructor);
   teacher.notifications.push(notification);

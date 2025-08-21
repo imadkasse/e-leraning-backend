@@ -44,43 +44,59 @@ courseSchema.pre("save", function (next) {
   next();
 });
 
-courseSchema.pre(/^findOne/, function () {
-  this.populate([
-    {
-      path: "instructor",
-      select: "username thumbnail",
-    },
-    {
-      path: "sections",
-      select: "title videos",// please d'ont edit this  line  (am using in courseController.js)
-      populate:{
-        path:'videos',
-      }
-    },
-
-    {
-      path: "files",
-      select: "filename size url",
-    },
-    {
-      path: "reviews",
-      select: "user createdAt rating content",
-      options: { sort: { createdAt: -1 } }, // ترتيب التقييمات من ��ديد الى قديم
-    },
-  ]);
-});
-courseSchema.pre(/^find/, function () {
-  this.populate([
-    {
-      path: "sections",
-      select: "title videos",  // please d'ont edit this  line  (am using in courseController.js)
-        populate:{
-        path:'videos',
-        
-      }
-    },
-  ]);
-});
+// courseSchema.pre(/^findOne/, function () {
+//   this.populate([
+//     {
+//       path: "instructor",
+//       select: "username thumbnail",
+//     },
+//     {
+//       path: "sections",
+//       select: "title videos",// please d'ont edit this  line  (am using in courseController.js)
+//       populate:{
+//         path:'videos',
+//         select: "lessonTitle duration url isCompleted completedBy comments",
+//         populate: {
+//           path: "comments",
+//           select: "user text replies createdAt",
+//           populate: {
+//             path: "replies.user",
+//             select: "username thumbnail createdAt",
+//           },
+//       },
+//       }
+//     },
+//     {
+//       path: "files",
+//       select: "filename size url",
+//     },
+//     {
+//       path: "reviews",
+//       select: "user createdAt rating content",
+//       options: { sort: { createdAt: -1 } }, // ترتيب التقييمات من ��ديد الى قديم
+//     },
+//   ]);
+// });
+// courseSchema.pre(/^find/, function () {
+//   this.populate([
+//     {
+//       path: "sections",
+//       select: "title videos",// please d'ont edit this  line  (am using in courseController.js)
+//       populate:{
+//         path:'videos',
+//         select: "lessonTitle duration url isCompleted completedBy comments",
+//         populate: {
+//           path: "comments",
+//           select: "user text replies createdAt",
+//           populate: {
+//             path: "replies.user",
+//             select: "username thumbnail createdAt",
+//           },
+//       },
+//       }
+//     },
+//   ]);
+// });
 
 courseSchema.methods.updateStudentsCount = async function () {
   this.studentsCount = this.enrolledStudents.length; // تحديث عدد الطلاب المسجلين
