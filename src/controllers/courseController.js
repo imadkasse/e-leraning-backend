@@ -7,7 +7,7 @@ const Video = require("../models/videoModel");
 const File = require("../models/fileModel");
 
 //! ################# NEW ###################
-const { uploadVideo } = require("../utils/uploadVideo");
+const { uploadVideo, removeVideo } = require("../utils/uploadVideo");
 
 const multer = require("multer");
 const sharp = require("sharp");
@@ -237,17 +237,16 @@ exports.createCourse = catchAsync(async (req, res, next) => {
 exports.updateCourseSections = catchAsync(async (req, res, next) => {
   const courseId = req.params.courseId;
   const sectionTitle = req.body.sectionTitle;
-  
+
   const teacher = await User.findById(req.user.id);
-  console.log(courseId)
+  console.log(courseId);
   if (!teacher) return next(new AppError("المستخدم غير موجود", 404));
   const course = await Course.findById(courseId);
   if (!course) return next(new AppError("المادة غير موجودة", 404));
 
-  if (!course.instructor._id.toString() ===  teacher.id.toString()) {
+  if (!course.instructor._id.toString() === teacher.id.toString()) {
     return next(new AppError("ليس لديك الصلاحية لتحديث الأقسام", 403));
   }
-  
 
   const section = await Section.create({
     title: sectionTitle,
@@ -310,12 +309,12 @@ exports.updateVideoTitle = catchAsync(async (req, res, next) => {
     video,
   });
 });
-exports.deleteVideoFromSection=catchAsync(async(req,res,next)=>{
+exports.deleteVideoFromSection = catchAsync(async (req, res, next) => {
   const teacher = await User.findById(req.user.id);
   if (!teacher) {
     return next(new AppError("المستخدم غير موجود", 404));
   }
-  
+
   const video = await Video.findById(req.params.videoId);
   if (!video) return next(new AppError("المحاضرة غير موجود", 404));
 
@@ -330,7 +329,10 @@ exports.deleteVideoFromSection=catchAsync(async(req,res,next)=>{
   if (!section.videos.includes(video._id)) {
     return next(new AppError("المحاضرة غير موجودة في هذا القسم", 400));
   }
-
+  const isRemoved = await removeVideo(video.url);
+  if (!isRemoved) {
+    return next(new AppError("حدث خطأ أثناء حذف الفيديو من السحابة", 500));
+  }
   // حذف الفيديو من القسم
   section.videos = section.videos.filter(
     (v) => v.toString() !== video._id.toString()
@@ -338,15 +340,9 @@ exports.deleteVideoFromSection=catchAsync(async(req,res,next)=>{
 
   await section.save();
 
-  // تحديث مدة الدورة
-  // course.duration = Math.max(0, course.duration - (video.duration || 0));
-  // await course.save();
-
-  // حذف الفيديو نفسه
   await video.deleteOne();
-  res.status(204).json()
-})
-
+  res.status(204).json();
+});
 
 //! #################################### NEW #############################
 exports.uploadUpdateImageCover = upload.single("imageCover");
@@ -367,37 +363,39 @@ exports.updateCourse = catchAsync(async (req, res, next) => {
 });
 
 exports.getCourse = catchAsync(async (req, res, next) => {
-  const course = await Course.findById(req.params.courseId).populate([
-    {
-      path: "instructor",
-      select: "username thumbnail",
-    },
-    {
-      path: "sections",
-      select: "title videos",// please d'ont edit this  line  (am using in courseController.js)
-      populate:{
-        path:'videos',
-        select: "lessonTitle duration url isCompleted completedBy comments",
-        populate: {
-          path: "comments",
-          select: "user text replies createdAt",
-          populate: {
-            path: "replies.user",
-            select: "username thumbnail createdAt",
-          },
+  const course = await Course.findById(req.params.courseId)
+    .populate([
+      {
+        path: "instructor",
+        select: "username thumbnail",
       },
-      }
-    },
-    {
-      path: "files",
-      select: "filename size url",
-    },
-    {
-      path: "reviews",
-      select: "user createdAt rating content",
-      options: { sort: { createdAt: -1 } }, // ترتيب التقييمات من ��ديد الى قديم
-    },
-  ]).lean()
+      {
+        path: "sections",
+        select: "title videos", // please d'ont edit this  line  (am using in courseController.js)
+        populate: {
+          path: "videos",
+          select: "lessonTitle duration url isCompleted completedBy comments",
+          populate: {
+            path: "comments",
+            select: "user text replies createdAt",
+            populate: {
+              path: "replies.user",
+              select: "username thumbnail createdAt",
+            },
+          },
+        },
+      },
+      {
+        path: "files",
+        select: "filename size url",
+      },
+      {
+        path: "reviews",
+        select: "user createdAt rating content",
+        options: { sort: { createdAt: -1 } }, // ترتيب التقييمات من ��ديد الى قديم
+      },
+    ])
+    .lean();
   if (!course) return next(new AppError("المادة غير موجودة", 404));
   res.status(200).json({
     message: "نجاح",
@@ -408,44 +406,43 @@ exports.getCourse = catchAsync(async (req, res, next) => {
 // for admin only
 exports.getAllcourse = catchAsync(async (req, res, next) => {
   const features = new APIFeaturs(
-  Course.find().populate([
-    {
-      path: "instructor",
-      select: "username thumbnail",
-    },
-    {
-      path: "sections",
-      select: "title videos",// please d'ont edit this  line  (am using in courseController.js)
-      populate:{
-        path:'videos',
-        select: "lessonTitle duration url isCompleted completedBy comments",
-        populate: {
-          path: "comments",
-          select: "user text replies createdAt",
-          populate: {
-            path: "replies.user",
-            select: "username thumbnail createdAt",
-          },
+    Course.find().populate([
+      {
+        path: "instructor",
+        select: "username thumbnail",
       },
-      }
-    },
-    {
-      path: "files",
-      select: "filename size url",
-    },
-    {
-      path: "reviews",
-      select: "user createdAt rating content",
-      options: { sort: { createdAt: -1 } }, // ترتيب التقييمات من ��ديد الى قديم
-    },
-  ]),
-  req.query
-)
-  .filter()
-  .sort()
-  .limitFields()
-  .paginate();
-
+      {
+        path: "sections",
+        select: "title videos", // please d'ont edit this  line  (am using in courseController.js)
+        populate: {
+          path: "videos",
+          select: "lessonTitle duration url isCompleted completedBy comments",
+          populate: {
+            path: "comments",
+            select: "user text replies createdAt",
+            populate: {
+              path: "replies.user",
+              select: "username thumbnail createdAt",
+            },
+          },
+        },
+      },
+      {
+        path: "files",
+        select: "filename size url",
+      },
+      {
+        path: "reviews",
+        select: "user createdAt rating content",
+        options: { sort: { createdAt: -1 } }, // ترتيب التقييمات من ��ديد الى قديم
+      },
+    ]),
+    req.query
+  )
+    .filter()
+    .sort()
+    .limitFields()
+    .paginate();
 
   // const doc = await features.query.explain();
   const courses = await features.query;
@@ -461,6 +458,20 @@ exports.deleteCourse = catchAsync(async (req, res, next) => {
   if (!course) return next(new AppError("المادة عير موجودة", 404));
   res.status(204).json({
     message: "تم الحذف بنجاح",
+  });
+});
+exports.getMyCourses = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.user.id).populate({
+    path: "enrolledCourses",
+    populate: {
+      path: "sections",
+      select: "title videos",
+      
+    },
+  });
+  res.status(200).json({
+    message: "تم الحصول على دورراتك بنجاح",
+    course: user.enrolledCourses,
   });
 });
 
@@ -728,7 +739,7 @@ exports.deleteLesson = catchAsync(async (req, res, next) => {
   if (!teacher) {
     return next(new AppError("المستخدم غير موجود", 404));
   }
-  
+
   const video = await Video.findById(req.params.videoId);
   if (!video) return next(new AppError("المحاضرة غير موجود", 404));
 
@@ -757,8 +768,6 @@ exports.deleteLesson = catchAsync(async (req, res, next) => {
 
   // حذف الفيديو نفسه
   await video.deleteOne();
-
- 
 });
 
 //Files (pdf or docx ,doc)
@@ -853,7 +862,7 @@ exports.deleteFile = catchAsync(async (req, res, next) => {
   res.status(200).json({
     message: "تم حذف الملف بنجاح",
   });
-});
+}); // file is not deleted from cloudinary
 
 exports.isCompleted = catchAsync(async (req, res, next) => {
   const { videoId } = req.params;
@@ -947,31 +956,29 @@ exports.createSection = catchAsync(async (req, res, next) => {
 });
 
 exports.updateSection = catchAsync(async (req, res, next) => {
-  const {sectionId , courseId} = req.params
+  const { sectionId, courseId } = req.params;
   const teacher = await User.findById(req.user.id);
   if (!teacher) return next(new AppError("المستخدم غير موجود", 404));
 
   const course = await Course.findById(courseId);
   if (!course) return next(new AppError("المادة غير موجودة", 404));
-  
-  if (!course.instructor._id.toString() ===  teacher.id.toString()) {
+
+  if (!course.instructor._id.toString() === teacher.id.toString()) {
     return next(new AppError("ليس لديك الصلاحية لتحديث هذا القسم", 403));
   }
 
   const section = await Section.findById(sectionId);
   if (!section) return next(new AppError("القسم غير موجود", 404));
-  if (!course.sections.some(section => section._id.toString() === sectionId)) {
-  return next(new AppError("القسم غير مرتبط بهذه الدورة", 400));
+  if (
+    !course.sections.some((section) => section._id.toString() === sectionId)
+  ) {
+    return next(new AppError("القسم غير مرتبط بهذه الدورة", 400));
   }
 
-  const updatedSection = await Section.findByIdAndUpdate(
-    sectionId,
-    req.body,
-    {
-      new: true,
-      runValidators: true,
-    }
-  );
+  const updatedSection = await Section.findByIdAndUpdate(sectionId, req.body, {
+    new: true,
+    runValidators: true,
+  });
 
   res.status(200).json({
     status: "success",
@@ -981,21 +988,23 @@ exports.updateSection = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteSection = catchAsync(async (req, res, next) => {
-  const {sectionId , courseId} = req.params
+  const { sectionId, courseId } = req.params;
   const teacher = await User.findById(req.user.id);
   if (!teacher) return next(new AppError("المستخدم غير موجود", 404));
 
   const course = await Course.findById(courseId);
   if (!course) return next(new AppError("المادة غير موجودة", 404));
 
-  if (!course.instructor._id.toString() ===  teacher.id.toString()) {
+  if (!course.instructor._id.toString() === teacher.id.toString()) {
     return next(new AppError("ليس لديك الصلاحية لحذف هذا القسم", 403));
   }
 
   const section = await Section.findById(sectionId);
   if (!section) return next(new AppError("القسم غير موجود", 404));
 
-  if (!course.sections.some(section => section._id.toString() === sectionId)) {
+  if (
+    !course.sections.some((section) => section._id.toString() === sectionId)
+  ) {
     return next(new AppError("القسم غير مرتبط بهذه الدورة", 400));
   }
 

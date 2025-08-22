@@ -84,14 +84,12 @@ exports.loginUser = (req, res, next) => {
     req.logIn(user, (err) => {
       if (err) return next(err);
       res.cookie("token", token, {
-       httpOnly: true,
-  secure: process.env.NODE_ENV === "production"?true:false, 
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", 
-  maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production" ? true : false,
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        maxAge: 24 * 60 * 60 * 1000,
       });
-      return res
-        .status(200)
-        .json({ message: "تم تسجيل الدخول بنجاح",  user });
+      return res.status(200).json({ message: "تم تسجيل الدخول بنجاح", user });
     });
   })(req, res, next);
 };
@@ -105,12 +103,12 @@ exports.signup = catchAsync(async (req, res, next) => {
   // await new Email(user);
 
   const token = createToken(user);
-   res.cookie("token", token, {
-       httpOnly: true,
-  secure: process.env.NODE_ENV === "production"?true:false, 
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", 
-  maxAge: 24 * 60 * 60 * 1000,
-      });
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production" ? true : false,
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 24 * 60 * 60 * 1000,
+  });
   res.status(200).json({
     message: "نجاح",
     user,
@@ -127,7 +125,6 @@ exports.logout = catchAsync(async (req, res, next) => {
 
   res.status(200).json({ message: "تم تسجيل الخروج بنجاح" });
 });
-
 
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -184,8 +181,7 @@ exports.prmission = catchAsync(async (req, res, next) => {
   // using cookie
   if (req.cookies?.token) {
     token = req.cookies.token;
-  }
-  else if (req.headers.authorization?.startsWith("Bearer")) {
+  } else if (req.headers.authorization?.startsWith("Bearer")) {
     token = req.headers.authorization.split(" ")[1];
   }
 
@@ -270,6 +266,11 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   const token = createToken(user);
 
   await user.save({ validateBeforeSave: false });
-
-  res.status(200).json({ message: "Password reset successful", token });
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production" ? true : false,
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 24 * 60 * 60 * 1000,
+  });
+  res.status(200).json({ message: "Password reset successful" });
 });

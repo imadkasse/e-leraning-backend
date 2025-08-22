@@ -21,7 +21,7 @@ const storage = multer.diskStorage({
     );
   },
 });
-const baseUrl = process.env.BASE_URL
+const baseUrl = process.env.BASE_URL;
 
 const upload = multer({
   storage: storage,
@@ -44,7 +44,7 @@ exports.uploadVideo = async (title, file) => {
       },
     }
   );
-    const videoId = fetchVideoId.data.guid;
+  const videoId = fetchVideoId.data.guid;
 
   const uploadUrl = `${baseUrl}/library/${videoLibraryId}/videos/${videoId}`;
   // read the file
@@ -80,4 +80,21 @@ exports.uploadVideo = async (title, file) => {
     videoFormat,
     videoDuration,
   };
+};
+exports.removeVideo = async (videoId) => {
+  try {
+    const res = await axios.delete(
+      `${baseUrl}/library/${videoLibraryId}/videos/${videoId}`,
+      {
+        headers: {
+          AccessKey: bunnyApiKey,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return true
+  } catch (error) {
+    console.log("Error When Deleting Video", error);
+    return false
+  }
 };

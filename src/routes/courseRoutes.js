@@ -37,6 +37,7 @@ const {
   addVideoToSection,
   updateVideoTitle,
   deleteVideoFromSection,
+  getMyCourses,
 } = require("../controllers/courseController");
 const { prmission, restrictTo } = require("../controllers/authController");
 const {
@@ -72,11 +73,14 @@ router.route("/searchCourses").get(searchCourses);
 router
   .route("/searchCoursesByTeacher")
   .get(prmission, restrictTo("teacher"), searchCoursesTeachers);
-
+// get my enrolled Courses
+router
+  .route("/my-courses")
+  .get(prmission, restrictTo("student"), getMyCourses);
 router
   .route("/:courseId")
   .get(getCourse)
-  .post(prmission,restrictTo("teacher"),updateCourseSections)
+  .post(prmission, restrictTo("teacher"), updateCourseSections)
   .patch(
     prmission,
     restrictTo("teacher"),
@@ -106,7 +110,6 @@ router
   .put(prmission, restrictTo("teacher"), updateSection)
   .delete(prmission, restrictTo("teacher"), deleteSection);
 
-
 // videos section
 // إضافة فيديو لقسم معين
 router
@@ -118,12 +121,12 @@ router
     requireVideoForCreateLesson,
     uploadVideoLesson,
     addLesson
-  )
-  
+  );
+
 router
   .route("/:courseId/sections/:sectionId/videos/:videoId")
-  .put(updateVideoTitle)
-  .delete(deleteVideoFromSection)
+  .put(prmission, restrictTo("teacher"), updateVideoTitle)
+  .delete(prmission, restrictTo("teacher"), deleteVideoFromSection);
 // حذف فيديو من قسم معين
 router
   .route("/:courseId/sections/:sectionId/videos/:videoId")

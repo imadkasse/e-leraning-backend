@@ -3,6 +3,8 @@ const Course = require("../models/courseModel");
 const Notification = require("../models/notifcationModel");
 const User = require("../models/userModel");
 const Video = require("../models/videoModel");
+const Section = require("../models/sectionsModel");
+
 const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
 
@@ -41,6 +43,8 @@ exports.addComment = catchAsync(async (req, res, next) => {
 
   const video = await Video.findById(videoId);
   if (!video) return next(new AppError("الفيديو غير موجود", 404));
+  const section = await Section.findById(video.sectionId);
+  if (!section) return next(new AppError("القسم غير موجود", 404));
 
   // إنشاء التعليق
   const newcomment = await Comment.create(req.body);
@@ -59,8 +63,8 @@ exports.addComment = catchAsync(async (req, res, next) => {
     courseImage: course.imageCover,
     courseId: course.id,
     user,
-    lessonNumber:10 //edit after time
-    //   course.videos.findIndex((lesson) => lesson.id === video.id) + 1,//error in section
+    lessonNumber:
+      section.videos.findIndex((lesson) => lesson.id === video.id) + 1, //error in section
   });
 
   const notification = await Notification.create({
@@ -68,8 +72,8 @@ exports.addComment = catchAsync(async (req, res, next) => {
     courseId: course.id,
     courseImage: course.imageCover,
     message: `تم إضافة تعليق من طرف ${user.username}`,
-    lessonNumber:10//edit after time
-    //   course.videos.findIndex((lesson) => lesson.id === videoId) + 1,//error in section
+    lessonNumber:
+      section.videos.findIndex((lesson) => lesson.id === video.id) + 1, //error in section
   });
   const teacher = await User.findById(course.instructor);
   teacher.notifications.push(notification);
@@ -187,10 +191,10 @@ exports.addReply = catchAsync(async (req, res, next) => {
     courseImage: course.imageCover,
     courseId: course.id,
     user,
-    lessonNumber:
-      course.videos.findIndex(
-        (lesson) => lesson.id === comment.video._id.toString()
-      ) + 1,
+    lessonNumber: 10,
+    //   course.videos.findIndex(
+    //     (lesson) => lesson.id === comment.video._id.toString()
+    //   ) + 1,
   });
   const student = await User.findById(comment.user);
   const notification = await Notification.create({
@@ -198,10 +202,10 @@ exports.addReply = catchAsync(async (req, res, next) => {
     courseId: course,
     courseImage: course.imageCover,
     message: ` تم إضافة رد من طرف الأستاذ ${user.username}`,
-    lessonNumber:
-      course.videos.findIndex(
-        (lesson) => lesson.id === comment.video._id.toString()
-      ) + 1,
+    lessonNumber: 10,
+    // course.videos.findIndex(
+    //   (lesson) => lesson.id === comment.video._id.toString()
+    // ) + 1,
   });
   student.notifications.push(notification);
   await student.save({

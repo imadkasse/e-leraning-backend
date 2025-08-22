@@ -108,10 +108,10 @@ exports.getMe = catchAsync(async (req, res, next) => {
     .select("-password")
     .populate([
       {
-        path: "enrolledCourses",
+        path: "enrolledCourses",//for student
       },
       {
-        path: "publishedCourses",
+        path: "publishedCourses",//for teacher
       },
     ]);
   if (!user) {
