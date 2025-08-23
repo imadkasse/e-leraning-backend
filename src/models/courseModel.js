@@ -7,7 +7,6 @@ const courseSchema = new Schema({
   description: { type: String, required: true },
   instructor: { type: Schema.Types.ObjectId, ref: "User", required: true }, // إشارة إلى المدرس
   sections: [{ type: Schema.Types.ObjectId, ref: "Section", required: true }], // coreect is : [{ type: Schema.Types.ObjectId, ref: "Section", required: true }]
-  files: [{ type: Schema.Types.ObjectId, ref: "File" }], // ملفات  الدورة
   price: { type: Number, default: 0 }, // إذا كانت الدورة مدفوعة
   category: { type: String },
   duration: Number, // مدة الدورة الكاملة

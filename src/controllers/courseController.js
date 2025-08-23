@@ -266,18 +266,16 @@ exports.addVideoToSection = catchAsync(async (req, res, next) => {
   const teacher = await User.findById(req.user.id);
   const sectionId = req.params.sectionId;
   const section = await Section.findById(sectionId);
-  const { videoId, videoDuration, videoFormat } = await uploadVideo(
-    req.body.title,
-    req.file
-  );
-  console.log(videoId, videoDuration, videoFormat);
+  const { videoId, videoFormat } = await uploadVideo(req.body.title, req.file);
+  console.log(videoId, videoFormat);
   const newVideo = await Video.create({
     lessonTitle: req.body.title,
     url: videoId,
-    duration: videoDuration,
+    duration: req.body.duration,
     format: videoFormat,
     uploadedBy: teacher.id,
     sectionId: sectionId,
+    description: req.body.description,
   });
   section.videos.push(newVideo.id);
   await section.save();
@@ -374,21 +372,25 @@ exports.getCourse = catchAsync(async (req, res, next) => {
         select: "title videos", // please d'ont edit this  line  (am using in courseController.js)
         populate: {
           path: "videos",
-          select: "lessonTitle duration url isCompleted completedBy comments",
-          populate: {
-            path: "comments",
-            select: "user text replies createdAt",
-            populate: {
-              path: "replies.user",
-              select: "username thumbnail createdAt",
+          select:
+            "lessonTitle duration description url isCompleted completedBy comments files",
+          populate: [
+            {
+              path: "comments",
+              select: "user text replies createdAt",
+              populate: {
+                path: "replies.user",
+                select: "username thumbnail createdAt",
+              },
             },
-          },
+            {
+              path: "files",
+              select: "filename size url format",
+            },
+          ],
         },
       },
-      {
-        path: "files",
-        select: "filename size url",
-      },
+
       {
         path: "reviews",
         select: "user createdAt rating content",
@@ -416,20 +418,23 @@ exports.getAllcourse = catchAsync(async (req, res, next) => {
         select: "title videos", // please d'ont edit this  line  (am using in courseController.js)
         populate: {
           path: "videos",
-          select: "lessonTitle duration url isCompleted completedBy comments",
-          populate: {
-            path: "comments",
-            select: "user text replies createdAt",
-            populate: {
-              path: "replies.user",
-              select: "username thumbnail createdAt",
+          select:
+            "lessonTitle duration url isCompleted completedBy comments files",
+          populate: [
+            {
+              path: "comments",
+              select: "user text replies createdAt",
+              populate: {
+                path: "replies.user",
+                select: "username thumbnail createdAt",
+              },
             },
-          },
+            {
+              path: "files",
+              select: "filename size url format",
+            },
+          ],
         },
-      },
-      {
-        path: "files",
-        select: "filename size url",
       },
       {
         path: "reviews",
@@ -466,7 +471,6 @@ exports.getMyCourses = catchAsync(async (req, res, next) => {
     populate: {
       path: "sections",
       select: "title videos",
-      
     },
   });
   res.status(200).json({
@@ -807,18 +811,28 @@ exports.uploadFileToCloudinary = catchAsync(async (req, res, next) => {
 });
 
 exports.addFile = catchAsync(async (req, res, next) => {
+  const { courseId, sectionId, videoId } = req.params;
+
   req.body.uploadedBy = req.user.id;
 
   const file = await File.create(req.body);
 
-  const course = await Course.findById(req.params.courseId);
+  const course = await Course.findById(courseId);
   if (!course) {
     return next(new AppError("المادة غير موجودة", 404));
   }
+  const section = await Section.findById(sectionId);
+  if (!section) {
+    return next(new AppError("القسم غير موجودة", 404));
+  }
+  const video = await Video.findById(videoId);
+  if (!video) {
+    return next(new AppError("الدرس غير موجودة", 404));
+  }
 
-  course.files.push(file._id);
+  video.files.push(file._id);
 
-  await course.save();
+  await video.save();
 
   res.status(200).json({
     message: "تمت إضافة الملف بنجاح",
@@ -832,7 +846,7 @@ exports.deleteFile = catchAsync(async (req, res, next) => {
     return next(new AppError("المستخدم غير موجود", 404));
   }
 
-  const { fileId } = req.params;
+  const { courseId, sectionId, videoId, fileId } = req.params;
 
   // البحث عن الملف بواسطة الـ id
   const file = await File.findById(fileId);
@@ -842,21 +856,31 @@ exports.deleteFile = catchAsync(async (req, res, next) => {
     return next(new AppError("الملف غير موجود", 404));
   }
 
-  const course = await Course.findById(req.params.courseId);
-  if (!course) return next(new AppError("المادة غير موجودة", 404));
+  const course = await Course.findById(courseId);
+  if (!course) {
+    return next(new AppError("المادة غير موجودة", 404));
+  }
+  const section = await Section.findById(sectionId);
+  if (!section) {
+    return next(new AppError("القسم غير موجودة", 404));
+  }
+  const video = await Video.findById(videoId);
+  if (!video) {
+    return next(new AppError("الدرس غير موجودة", 404));
+  }
 
-  if (!course.files.some((f) => f._id.equals(file.id))) {
+  if (!video.files.some((f) => f._id.equals(file.id))) {
     return next(new AppError("الملف غير مرتبط بالدورة", 400));
   }
 
   // حذف الملف
   await file.deleteOne();
 
-  course.files = course.files.filter(
+  video.files = video.files.filter(
     (f) => f._id.toString() !== file._id.toString()
   );
 
-  await course.save();
+  await video.save();
 
   // استجابة النجاح
   res.status(200).json({

@@ -178,7 +178,7 @@ router
 
 //section Files
 router
-  .route("/:courseId/files")
+  .route("/:courseId/sections/:sectionId/videos/:videoId/files")
   .post(
     prmission,
     restrictTo("teacher"),
@@ -188,7 +188,7 @@ router
   );
 
 router
-  .route("/:courseId/files/:fileId")
+  .route("/:courseId/sections/:sectionId/videos/:videoId/files/:fileId")
   .delete(prmission, restrictTo("teacher"), deleteFile);
 
 // comments section
