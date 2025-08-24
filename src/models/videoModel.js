@@ -17,7 +17,8 @@ const videoSchema = new Schema(
       default: ".mp4",
     },
     duration: {
-      type: Number,
+      type: String,
+      default: "00:00",
       // مدة الفيديو بالثواني أو الدقائق
     },
     uploadedBy: {

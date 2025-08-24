@@ -1,12 +1,18 @@
 version: "3"
 
 services:
-  e-learninig:
+  e-learning:
     container_name: e-learninig_api
-    build: .
-    ports: -'5000:5000'
+
+    build:
+      context: .
+      target: development
+    ports:
+      - "5000:5000"
     env_file:
       - ./.env
+    depends_on:
+      - mongo
 
   mongo:
     image: mongo
