@@ -98,3 +98,6 @@ exports.removeVideo = async (videoId) => {
     return false
   }
 };
+exports.analytics = async ()=>{
+  
+}

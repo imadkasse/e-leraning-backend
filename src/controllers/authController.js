@@ -12,6 +12,7 @@ const moment = require("moment");
 const multer = require("multer");
 const sharp = require("sharp");
 const cloudinary = require("./../config/cloudinary");
+const { jwt_secret, jwt_expiration_time } = require("../config/config");
 
 const multerStorage = multer.memoryStorage();
 const multerFilter = (req, file, cb) => {
@@ -66,8 +67,9 @@ exports.uploadUsingClodinary = catchAsync(async (req, res, next) => {
 });
 
 const createToken = (user) => {
-  const token = jwt.sign({ id: user.id }, "your_jwt_secret", {
-    expiresIn: "4h",
+  
+  const token = jwt.sign({ id: user.id }, jwt_secret, {
+    expiresIn: jwt_expiration_time,
   });
   return token;
 };
@@ -189,7 +191,7 @@ exports.prmission = catchAsync(async (req, res, next) => {
     return next(new AppError("Not authorized to access this route", 401));
   }
 
-  const decoded = await promisify(jwt.verify)(token, "your_jwt_secret");
+  const decoded = await promisify(jwt.verify)(token, jwt_secret);
 
   const user = await User.findById(decoded.id);
 

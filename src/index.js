@@ -18,6 +18,8 @@ const courseRoutes = require("./routes/courseRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const faqRoutes = require("./routes/faqRoutes");
 const commentRoutes = require("./routes/commentRoutes");
+const adminRoutes = require("./routes/admin.route");
+const teacherRoutes = require("./routes/teacher.route");
 
 const app = express();
 
@@ -94,6 +96,8 @@ app.use("/api/courses", courseRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/faq", faqRoutes);
 app.use("/api/comments", commentRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/teacher", teacherRoutes);
 
 //defined 404 middleware (page not found)
 app.all("*", (req, res, next) => {

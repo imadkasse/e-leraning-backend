@@ -19,6 +19,8 @@ EMAIL_USERNAME=
 GOOGLE_CLIENT_ID=1095378731798-7g448kduld9i8gv70r8i7dg1cc1vr99l.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=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
 # db config
+# when usign docker mongodb://root:example@mongo:27017/e-learning?authSource=admin 
+# for local mongodb use mongodb://localhost:27017/e-learning
 URI=mongodb://localhost:27017/e-learning
 
 # bunny config
