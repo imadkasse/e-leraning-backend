@@ -67,7 +67,6 @@ exports.uploadUsingClodinary = catchAsync(async (req, res, next) => {
 });
 
 const createToken = (user) => {
-  
   const token = jwt.sign({ id: user.id }, jwt_secret, {
     expiresIn: jwt_expiration_time,
   });
@@ -171,6 +170,12 @@ exports.loginWithGoogle = catchAsync(async (req, res, next) => {
   }
 
   const token = createToken(user);
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production" ? true : false,
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 24 * 60 * 60 * 1000,
+  });
 
   res.redirect(`http://localhost:3000/auth/callback?token=${token}`);
 });

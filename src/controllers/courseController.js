@@ -13,6 +13,7 @@ const multer = require("multer");
 const sharp = require("sharp");
 const cloudinary = require("./../config/cloudinary");
 const Section = require("../models/sectionsModel");
+const Coupon = require("../models/couponModel");
 
 const multerStorage = multer.memoryStorage();
 
@@ -483,6 +484,7 @@ exports.getMyCourses = catchAsync(async (req, res, next) => {
 exports.enrollCourse = async (req, res, next) => {
   const courseId = req.params.courseId;
   const studentId = req.user.id;
+  const { couponCode } = req.body;
 
   const student = await User.findById(studentId);
   if (!student) return next(new AppError("المستخدم غير موجود", 404));
@@ -494,7 +496,26 @@ exports.enrollCourse = async (req, res, next) => {
     return next(new AppError("أنت مسجل بالفعل في هذا الكورس", 400));
   }
 
-  if (!(student.balance >= 0 && student.balance >= course.price)) {
+  let finalPrice = course.price;
+  if (couponCode) {
+    const coupon = await Coupon.findOne({
+      code: couponCode,
+    });
+    if (!coupon) return next(new AppError("الكوبون غير صحيح", 400));
+    if (!coupon.isValid())
+      return next(new AppError("الكوبون غير صالح أو منتهي", 400));
+
+    if (coupon.courseId && coupon.courseId.toString() !== courseId.toString()) {
+      return next(new AppError("هذا الكوبون غير مخصص لهذه الدورة", 400));
+    }
+
+    finalPrice =
+      course.price - (course.price * coupon.discountAsPercentage) / 100;
+    coupon.usedCount += 1;
+    await coupon.save();
+  }
+
+  if (!(student.balance >= 0 && student.balance >= finalPrice)) {
     return next(new AppError("ليس لديك رصيد كاف للتسجيل في هذا الكورس", 400));
   }
 
@@ -507,7 +528,7 @@ exports.enrollCourse = async (req, res, next) => {
     studentId,
     {
       $push: { enrolledCourses: courseId },
-      $inc: { balance: -course.price },
+      $inc: { balance: -finalPrice },
     },
     {
       new: true,
