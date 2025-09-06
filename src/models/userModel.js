@@ -102,7 +102,7 @@ const userSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-userSchema.pre(/^find/, function () {
+userSchema.pre(/^findOne/, function () {
   this.populate([
     {
       path: "notifications",
@@ -113,7 +113,6 @@ userSchema.pre(/^find/, function () {
       populate: {
         path: "sections",
       },
-      
     },
   ]);
 });
@@ -131,7 +130,7 @@ userSchema.methods.createPasswordResetToken = function () {
     .createHash("sha256")
     .update(resetToken)
     .digest("hex");
-  this.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes 
+  this.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
   console.log("resExp", this.resetPasswordExpires);
 
   return resetToken;
@@ -140,11 +139,19 @@ userSchema.methods.createPasswordResetToken = function () {
 userSchema.methods.updateProgress = async function (courseId, videoId) {
   try {
     // تحقق من وجود الدورة
-    const course = await mongoose.model("Course").findById(courseId);
+    const course = await mongoose
+      .model("Course")
+      .findById(courseId)
+      .populate({
+        path: "sections",
+        populate: {
+          path: "videos",
+        },
+      });
     if (!course) {
       throw new Error("الدورة غير موجودة");
     }
-
+    const allVideos = course.sections.flatMap((sec) => sec.videos);
     // البحث عن تقدم الدورة الحالية
     let progress = this.progress.find(
       (prog) => prog.course.toString() === course._id.toString()
@@ -155,16 +162,21 @@ userSchema.methods.updateProgress = async function (courseId, videoId) {
       if (!progress.completedVideos.includes(videoId)) {
         progress.completedVideos.push(videoId);
         progress.percentage =
-          (progress.completedVideos.length / course.videos.length) * 100;
+          (progress.completedVideos.length / allVideos.length) * 100;
       }
     } else {
       // إذا لم يكن مسجلاً، إضافة تقدم جديد
-      this.progress.push({
+      progress = {
         course: course._id,
         completedVideos: [videoId],
-        percentage: (1 / course.videos.length) * 100,
-      });
+        percentage: (1 / allVideos.length) * 100,
+      };
+      this.progress.push(progress);
     }
+    progress.percentage =
+      (progress.completedVideos.length / allVideos.length) * 100;
+
+
 
     // حفظ التعديلات
     await this.save({ validateModifiedOnly: true });

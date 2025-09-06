@@ -40,29 +40,9 @@ const upload = multer({
   fileFilter: multerFilter,
 });
 
-exports.uploadCourseFile = upload.fields([
-  { name: "imageCover", maxCount: 1 },
-  { name: "videos", maxCount: 4 },
-  { name: "files", maxCount: 4 },
-]);
-//! don't forget to add upload files (pdf files)
+exports.uploadCourseFile = upload.fields([{ name: "imageCover", maxCount: 1 }]);
 
 //Uploads a image Cover
-exports.requireImageCoverForCreateCourse = catchAsync(
-  async (req, res, next) => {
-    if (
-      !req.files ||
-      !req.files.imageCover ||
-      req.files.imageCover.length === 0
-    ) {
-      return next(
-        new AppError("يرجى تحميل ملف الصورة المغرة  عند إنشاء الدورة", 400)
-      );
-    }
-
-    next();
-  }
-);
 
 exports.optionalImageCoverForUpdateCourse = catchAsync(
   async (req, res, next) => {
@@ -135,77 +115,7 @@ exports.uploadCourseImageCover = catchAsync(async (req, res, next) => {
   }
   next();
 });
-//Uploads a videos
-exports.uploadVideosCourse = catchAsync(async (req, res, next) => {
-  if (!req.files || !req.files.videos) {
-    return next(new AppError("لم يتم إرسال أي فيديوهات", 400));
-  }
-  if (!req.body.lessonTitle) {
-    return next(new AppError("يرجى إدخال عنوان الدرس", 400));
-  }
 
-  const videoPromises = req.files.videos.map((videoFile, i) => {
-    return new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: "course-videos", resource_type: "video" },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      );
-      stream.end(videoFile.buffer);
-    }).then((result) => {
-      return Video.create({
-        lessonTitle: req.body.lessonTitle,
-        url: result.secure_url,
-        uploadedBy: req.user.id,
-        format: result.format,
-        duration: result.duration,
-      });
-    });
-  });
-
-  const videos = await Promise.all(videoPromises);
-  req.body.videos = videos.map((video) => video._id);
-  req.body.duration = videos.reduce((total, video) => {
-    return total + video.duration;
-  }, 0);
-  next();
-});
-//Upload Files
-
-exports.uploadFilesCourse = catchAsync(async (req, res, next) => {
-  if (!req.files || !req.files.files) {
-    return next(new AppError("لم يتم إرسال أي ملفات", 400));
-  }
-  const filePromises = req.files.files.map((file) => {
-    return new Promise((resolve, reject) => {
-      const fileName = `${Date.now()}-${file.originalname}`;
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: "course-files", resource_type: "raw", public_id: fileName },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      );
-      stream.end(file.buffer);
-    }).then((result) => {
-      return File.create({
-        format: result.format,
-        filename: result.public_id,
-        size: result.bytes,
-        url: result.secure_url,
-        uploadedBy: req.user.id,
-      });
-    });
-  });
-  const files = await Promise.all(filePromises);
-  req.body.files = files.map((file) => file._id);
-
-  next();
-});
-
-//! #################################### UPDATED #############################
 // teacher and admin
 exports.createCourse = catchAsync(async (req, res, next) => {
   req.body.instructor = req.user.id;
@@ -232,7 +142,6 @@ exports.createCourse = catchAsync(async (req, res, next) => {
   });
 });
 
-//! #################################### NEW #############################
 //! Route : /courses/{courseId}
 // this is add section  to course in after time replace with createSection
 exports.updateCourseSections = catchAsync(async (req, res, next) => {
@@ -252,6 +161,7 @@ exports.updateCourseSections = catchAsync(async (req, res, next) => {
   const section = await Section.create({
     title: sectionTitle,
     videos: [],
+    courseId: course._id,
   });
 
   course.sections.push(section.id);
@@ -343,7 +253,6 @@ exports.deleteVideoFromSection = catchAsync(async (req, res, next) => {
   res.status(204).json();
 });
 
-//! #################################### NEW #############################
 exports.uploadUpdateImageCover = upload.single("imageCover");
 
 exports.updateCourse = catchAsync(async (req, res, next) => {
@@ -412,7 +321,7 @@ exports.getAllcourse = catchAsync(async (req, res, next) => {
     Course.find().populate([
       {
         path: "instructor",
-        select: "username thumbnail",
+        select: "-notifications -publishedCourses",
       },
       {
         path: "sections",
@@ -615,186 +524,6 @@ exports.searchCoursesTeachers = catchAsync(async (req, res, next) => {
   });
 });
 
-// تحديث التقدم
-exports.updateProgress = catchAsync(async (req, res, next) => {
-  const student = await User.findById(req.user.id);
-
-  if (!student) {
-    return res.status(404).json({ message: "الطالب غير موجود" });
-  }
-
-  // تحديث التقدم في الكورس
-  await student.updateProgress(req.params.courseId, req.params.videoId);
-
-  res.status(200).json({ message: "تم تحديث التقدم بنجاح" });
-});
-
-// Videos And Lesson section
-exports.uploadVideoFromLesson = upload.single("video");
-
-// add a midallwear to return a next() or Error
-//for creating a new lesson
-exports.requireVideoForCreateLesson = catchAsync(async (req, res, next) => {
-  if (!req.file) {
-    return next(new AppError("يرجى تحميل ملف الفيديو عند إنشاء الدرس", 400));
-  }
-
-  next();
-});
-exports.optionalVideoForUpdateLesson = catchAsync(async (req, res, next) => {
-  if (!req.file) {
-    return next();
-  }
-  next();
-});
-
-exports.uploadVideoLesson = catchAsync(async (req, res, next) => {
-  if (req.file) {
-    const file = req.file;
-    const result = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { resource_type: "video" },
-        (error, result) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve(result);
-          }
-        }
-      );
-
-      stream.end(file.buffer);
-    });
-    req.body.url = result.secure_url;
-    req.body.format = result.format;
-    req.body.duration = result.duration;
-  }
-
-  next();
-});
-
-exports.addLesson = catchAsync(async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return next(new AppError("المستخدم غير موجود", 404));
-
-  const course = await Course.findById(req.params.courseId);
-  if (!course) return next(new AppError("المادة غير موجودة", 404));
-
-  if (!user.publishedCourses.includes(course.id)) {
-    return next(new AppError("ليس لديك الصلاحية لإضافة فيديو جديد", 403));
-  }
-
-  const section = await Section.findById(req.params.sectionId);
-  if (!section) {
-    return next(new AppError("القسم غير موجود", 404));
-  }
-
-  // التحقق من أن القسم ينتمي للدورة
-  if (!course.sections.includes(section._id)) {
-    return next(new AppError("القسم لا ينتمي لهذه الدورة", 400));
-  }
-
-  req.body.uploadedBy = user._id;
-  req.body.courseId = course.id;
-
-  // create lesson with video
-  const newLesson = await Video.create(req.body);
-
-  // add the video to section
-  section.videos.push(newLesson._id);
-  await section.save();
-
-  // تحديث مدة الدورة
-  course.duration += newLesson.duration || 0;
-  await course.save();
-
-  res.status(200).json({
-    status: "success",
-    message: "تمت إضافة الفيديو بنجاح",
-    newLesson,
-  });
-});
-
-exports.updateLesson = catchAsync(async (req, res, next) => {
-  // التحقق من المستخدم
-  const user = await User.findById(req.user.id);
-  if (!user) {
-    return next(new AppError("المستخدم غير موجود", 404));
-  }
-
-  // التحقق من الدورة
-  const course = await Course.findOne({
-    _id: req.params.courseId,
-    videos: req.params.videoId,
-  }).populate("videos");
-  if (!course) {
-    return next(new AppError("المادة غير موجودة", 404));
-  }
-
-  // التحقق من الصلاحيات
-  if (!user.publishedCourses.some((courseId) => courseId.equals(course.id))) {
-    return next(
-      new AppError("أنت لا تملك الصلاحية للوصول إلى هذه الدورة", 403)
-    );
-  }
-
-  if (!course.videos.some((video) => video._id.equals(req.params.videoId))) {
-    return next(new AppError("المحاضرة غير موجودة ضمن هذه الدورة", 404));
-  }
-
-  // تحديث الدرس
-  const updatedLesson = await Video.findByIdAndUpdate(
-    req.params.videoId,
-    req.body,
-    {
-      new: true,
-      runValidators: true,
-    }
-  );
-
-  res.status(200).json({
-    message: "تم التحديث بنجاح",
-    updatedLesson,
-  });
-});
-
-//حذف فيديو
-exports.deleteLesson = catchAsync(async (req, res, next) => {
-  const teacher = await User.findById(req.user.id);
-  if (!teacher) {
-    return next(new AppError("المستخدم غير موجود", 404));
-  }
-
-  const video = await Video.findById(req.params.videoId);
-  if (!video) return next(new AppError("المحاضرة غير موجود", 404));
-
-  const section = await Section.findById(req.params.sectionId);
-  if (!section) return next(new AppError("القسم غير موجود", 404));
-
-  if (video.uploadedBy.toString() !== teacher.id) {
-    return next(new AppError("ليس لديك الصلاحية لتحديث عنوان الفيديو", 403));
-  }
-
-  //check is the video in side section
-  if (!section.videos.includes(video._id)) {
-    return next(new AppError("المحاضرة غير موجودة في هذا القسم", 400));
-  }
-
-  // حذف الفيديو من القسم
-  section.videos = section.videos.filter(
-    (v) => v.toString() !== video._id.toString()
-  );
-
-  await section.save();
-
-  // تحديث مدة الدورة
-  // course.duration = Math.max(0, course.duration - (video.duration || 0));
-  // await course.save();
-
-  // حذف الفيديو نفسه
-  await video.deleteOne();
-});
-
 //Files (pdf or docx ,doc)
 
 exports.uploadFile = upload.single("file");
@@ -909,6 +638,7 @@ exports.deleteFile = catchAsync(async (req, res, next) => {
   });
 }); // file is not deleted from cloudinary
 
+// mark is completed  and update progress
 exports.isCompleted = catchAsync(async (req, res, next) => {
   const { videoId } = req.params;
 
@@ -919,7 +649,9 @@ exports.isCompleted = catchAsync(async (req, res, next) => {
   // التحقق من الفيديو
   const video = await Video.findById(videoId);
   if (!video) return next(new AppError("الفيديو غير موجود", 404));
-
+  // التحقق من القسم
+  const section = await Section.findById(video.sectionId);
+  if (!section) return next(new AppError("القسم غير موجود", 404));
   // التحقق إذا كان المستخدم قد أكمل الفيديو بالفعل
   if (video.completedBy.includes(user.id)) {
     return next(new AppError("لقد شاهدت الفيديو بالفعل", 400));
@@ -928,13 +660,13 @@ exports.isCompleted = catchAsync(async (req, res, next) => {
   // تحديث الفيديو بإضافة المستخدم إلى قائمة completedBy
   video.completedBy.push(user.id);
   await video.save();
-  console.log(video);
+
   // تحديث تقدم المستخدم في الدورة
-  if (!video.courseId) {
+  if (!section._id) {
     return next(new AppError("الفيديو لا يحتوي على معرف الدورة", 400));
   }
-
-  await user.updateProgress(video.courseId, video._id);
+  console.log(section);
+  await user.updateProgress(section.courseId, video._id);
 
   // إرسال استجابة النجاح
   res.status(200).json({
@@ -970,35 +702,6 @@ exports.getCoursesAndCategory = catchAsync(async (req, res, next) => {
 });
 
 // إدارة الأقسام
-exports.createSection = catchAsync(async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return next(new AppError("المستخدم غير موجود", 404));
-
-  const course = await Course.findById(req.params.courseId);
-  if (!course) return next(new AppError("المادة غير موجودة", 404));
-
-  if (!user.publishedCourses.includes(course.id)) {
-    return next(new AppError("ليس لديك الصلاحية لإضافة قسم جديد", 403));
-  }
-
-  if (!req.body.title) {
-    return next(new AppError("عنوان القسم مطلوب", 400));
-  }
-
-  const newSection = await Section.create({
-    title: req.body.title,
-    videos: [],
-  });
-
-  course.sections.push(newSection._id);
-  await course.save();
-
-  res.status(201).json({
-    status: "success",
-    message: "تم إنشاء القسم بنجاح",
-    section: newSection,
-  });
-});
 
 exports.updateSection = catchAsync(async (req, res, next) => {
   const { sectionId, courseId } = req.params;

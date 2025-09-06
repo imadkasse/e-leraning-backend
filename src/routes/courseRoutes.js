@@ -8,30 +8,18 @@ const {
   deleteCourse,
   enrollCourse,
   uploadCourseImageCover,
-  uploadVideosCourse,
   uploadCourseFile,
-  deleteLesson,
   unenrollCourse,
   searchCourses,
-  updateProgress,
-  uploadFilesCourse,
-  addLesson,
-  updateLesson,
-  uploadVideoFromLesson,
-  uploadVideoLesson,
   searchCoursesTeachers,
-  requireVideoForCreateLesson,
-  optionalVideoForUpdateLesson,
   deleteFile,
   addFile,
   uploadFile,
   uploadFileToCloudinary,
   uploadUpdateImageCover,
-  requireImageCoverForCreateCourse,
   optionalImageCoverForUpdateCourse,
   isCompleted,
   getCoursesAndCategory,
-  createSection,
   updateSection,
   deleteSection,
   addVideoToSection,
@@ -44,7 +32,6 @@ const {
   addReview,
   updateReview,
   deleteReview,
-  setUserId,
 } = require("../controllers/reviewController");
 const {
   addComment,
@@ -54,7 +41,7 @@ const { setUploads } = require("../utils/uploadVideo");
 
 const router = express.Router();
 router.route("/getCategory").get(getCoursesAndCategory);
-///
+
 router
   .route("/")
   .post(
@@ -63,8 +50,6 @@ router
     uploadCourseFile,
     optionalImageCoverForUpdateCourse,
     uploadCourseImageCover,
-    // uploadVideosCourse,
-    // uploadFilesCourse,
     createCourse
   )
   .get(getAllcourse);
@@ -74,9 +59,7 @@ router
   .route("/searchCoursesByTeacher")
   .get(prmission, restrictTo("teacher"), searchCoursesTeachers);
 // get my enrolled Courses
-router
-  .route("/my-courses")
-  .get(prmission, restrictTo("student"), getMyCourses);
+router.route("/my-courses").get(prmission, restrictTo("student"), getMyCourses);
 router
   .route("/:courseId")
   .get(getCourse)
@@ -90,8 +73,15 @@ router
     updateCourse
   )
   .delete(prmission, restrictTo("admin", "teacher"), deleteCourse);
-//! ############################ NEW ##############################
-//  add video to section
+
+// Sections
+router
+  .route("/:courseId/sections/:sectionId")
+  .put(prmission, restrictTo("teacher"), updateSection)
+  .delete(prmission, restrictTo("teacher"), deleteSection);
+
+// Section videos (Lessons)
+
 router.post(
   "/:courseId/sections/:sectionId",
   prmission,
@@ -99,69 +89,18 @@ router.post(
   setUploads,
   addVideoToSection
 );
-
-// إدارة الأقسام
-router
-  .route("/:courseId/sections")
-  .post(prmission, restrictTo("teacher"), createSection);
-
-router
-  .route("/:courseId/sections/:sectionId")
-  .put(prmission, restrictTo("teacher"), updateSection)
-  .delete(prmission, restrictTo("teacher"), deleteSection);
-
-// videos section
-// إضافة فيديو لقسم معين
-router
-  .route("/:courseId/sections/:sectionId/videos")
-  .post(
-    prmission,
-    restrictTo("teacher"),
-    uploadVideoFromLesson,
-    requireVideoForCreateLesson,
-    uploadVideoLesson,
-    addLesson
-  );
-
 router
   .route("/:courseId/sections/:sectionId/videos/:videoId")
   .put(prmission, restrictTo("teacher"), updateVideoTitle)
   .delete(prmission, restrictTo("teacher"), deleteVideoFromSection);
-// حذف فيديو من قسم معين
-router
-  .route("/:courseId/sections/:sectionId/videos/:videoId")
-  .delete(prmission, restrictTo("teacher"), deleteLesson)
-  .patch(
-    prmission,
-    restrictTo("teacher"),
-    uploadVideoFromLesson,
-    optionalVideoForUpdateLesson,
-    uploadVideoLesson,
-    updateLesson
-  );
 
 //enrolled in course
 router
   .route("/enrolled/:courseId")
   .post(prmission, restrictTo("student"), enrollCourse)
-  .post(prmission, restrictTo("student"), unenrollCourse);
-//add review
-
-router
-  .route("/:courseId/videos/:videoId")
-  .delete(prmission, restrictTo("teacher"), deleteLesson)
-  .patch(
-    prmission,
-    restrictTo("teacher"),
-    uploadVideoFromLesson,
-    optionalVideoForUpdateLesson,
-    uploadVideoLesson,
-    updateLesson
-  )
-  .post(prmission, restrictTo("student"), updateProgress);
+  .post(prmission, restrictTo("student"), unenrollCourse); // switch POST to PUT or PATCH or DELETE
 
 // update isComplete video
-
 router
   .route("/:courseId/videos/:videoId/completed")
   .patch(prmission, restrictTo("student"), isCompleted);
